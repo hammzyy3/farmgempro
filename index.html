@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Farm Gem - Telegram Mini App</title>
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      // Polyfill CloudStorage and spoof version to support features in older simulated SDK environments (e.g. 6.0)
+      try {
+        if (window.Telegram && window.Telegram.WebApp) {
+          // Spoof version check methods to always return true, preventing SDK warning/block
+          window.Telegram.WebApp.isVersionAtLeast = function(ver) {
+            return true;
+          };
+
+          // Spoof version to 7.0 if reported as lower than 6.9
+          const currentVersion = parseFloat(window.Telegram.WebApp.version || "6.0");
+          if (currentVersion < 6.9) {
+            Object.defineProperty(window.Telegram.WebApp, 'version', {
+              get: function() { return '7.0'; },
+              configurable: true
+            });
+          }
+          
+          // Inject a fully working LocalStorage-backed CloudStorage fallback safely without triggering the native getter warning
+          const memStorage = {};
+          const mockCloudStorage = {
+            setItem: function(key, value, callback) {
+              try {
+                localStorage.setItem(key, value);
+                if (callback) callback(null, true);
+              } catch (e) {
+                memStorage[key] = value;
+                if (callback) callback(null, true);
+              }
+            },
+            getItem: function(key, callback) {
+              try {
+                const val = localStorage.getItem(key);
+                if (callback) callback(null, val);
+              } catch (e) {
+                if (callback) callback(null, memStorage[key] || null);
+              }
+            },
+            getItems: function(keys, callback) {
+              const res = {};
+              keys.forEach(function(k) {
+                try {
+                  res[k] = localStorage.getItem(k) || memStorage[k] || "";
+                } catch (e) {
+                  res[k] = memStorage[k] || "";
+                }
+              });
+              if (callback) callback(null, res);
+            },
+            removeItem: function(key, callback) {
+              try {
+                localStorage.removeItem(key);
+              } catch (e) {}
+              delete memStorage[key];
+              if (callback) callback(null, true);
+            },
+            removeItems: function(keys, callback) {
+              keys.forEach(function(k) {
+                try {
+                  localStorage.removeItem(k);
+                } catch (e) {}
+                delete memStorage[k];
+              });
+              if (callback) callback(null, true);
+            },
+            getKeys: function(callback) {
+              let keys = [];
+              try {
+                keys = Object.keys(localStorage);
+              } catch (e) {}
+              const allKeys = Array.from(new Set(keys.concat(Object.keys(memStorage))));
+              if (callback) callback(null, allKeys);
+            }
+          };
+
+          // Redefine CloudStorage using defineProperty to fully override the throwing native getter
+          Object.defineProperty(window.Telegram.WebApp, 'CloudStorage', {
+            get: function() { return mockCloudStorage; },
+            set: function(val) {},
+            configurable: true,
+            enumerable: true
+          });
+        }
+      } catch (err) {
+        console.warn("Could not polyfill Telegram CloudStorage:", err);
+      }
+    </script>
+    <!-- Monetag SDK -->
+    <script src='https://libtl.com/sdk.js' data-zone='11282062' data-sdk='show_11282062'></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

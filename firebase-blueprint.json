@@ -1,0 +1,141 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile containing Telegram information, gems balance, XP, and miner status.",
+      "type": "object",
+      "properties": {
+        "telegramId": { "type": "string" },
+        "username": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "gems": { "type": "number" },
+        "exp": { "type": "number" },
+        "minerLevel": { "type": "number" },
+        "minerStartedAt": { "type": "string" },
+        "referredBy": { "type": "string" },
+        "adViewsToday": { "type": "number" },
+        "lastAdViewAt": { "type": "string" },
+        "totalGamesWonGems": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["telegramId", "firstName", "gems", "exp", "minerLevel"]
+    },
+    "Referral": {
+      "title": "Referral Link",
+      "description": "Represents a user invited by another user and the earnings associated.",
+      "type": "object",
+      "properties": {
+        "referrerId": { "type": "string" },
+        "referredId": { "type": "string" },
+        "referredUsername": { "type": "string" },
+        "referredFirstName": { "type": "string" },
+        "referredMinerLevel": { "type": "number" },
+        "earnedGems": { "type": "number" },
+        "earnedExp": { "type": "number" },
+        "isQualified": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["referrerId", "referredId", "isQualified"]
+    },
+    "Withdrawal": {
+      "title": "Withdrawal Request",
+      "description": "MoMo withdrawal request by a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "momoNumber": { "type": "string" },
+        "momoName": { "type": "string" },
+        "amountVnd": { "type": "number" },
+        "gemAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "momoNumber", "momoName", "amountVnd", "gemAmount", "status", "createdAt"]
+    },
+    "GemHistory": {
+      "title": "Gem History",
+      "description": "Audit log of gem transactions for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "type", "amount", "description", "createdAt"]
+    },
+    "Game": {
+      "title": "Game Session",
+      "description": "RPS match between two players.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "betTier": { "type": "number" },
+        "player1Id": { "type": "string" },
+        "player1Name": { "type": "string" },
+        "player1Move": { "type": "string" },
+        "player2Id": { "type": "string" },
+        "player2Name": { "type": "string" },
+        "player2Move": { "type": "string" },
+        "status": { "type": "string", "enum": ["waiting", "completed", "cancelled"] },
+        "winnerId": { "type": "string" },
+        "prizeGems": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "completedAt": { "type": "string" }
+      },
+      "required": ["id", "betTier", "player1Id", "player1Move", "status", "createdAt"]
+    },
+    "SystemConfig": {
+      "title": "System Configurations",
+      "description": "Admin configurations for app rules in real-time.",
+      "type": "object",
+      "properties": {
+        "adRewardMin": { "type": "number" },
+        "adRewardMax": { "type": "number" },
+        "adRewardExpMin": { "type": "number" },
+        "adRewardExpMax": { "type": "number" },
+        "adCooldownSeconds": { "type": "number" },
+        "adMaxViewsPerDay": { "type": "number" },
+        "miningBaseRate": { "type": "number" },
+        "miningDurationHours": { "type": "number" },
+        "minerUpgradeExpBase": { "type": "number" },
+        "minerUpgradeExpMultiplier": { "type": "number" },
+        "withdrawalMinVnd": { "type": "number" },
+        "gemToVndRate": { "type": "number" }
+      },
+      "required": ["adRewardMin", "adRewardMax", "adRewardExpMin", "adRewardExpMax", "miningBaseRate", "withdrawalMinVnd", "gemToVndRate"]
+    }
+  },
+  "firestore": {
+    "/users/{telegramId}": {
+      "schema": "User",
+      "description": "The user document containing stats and profile settings"
+    },
+    "/users/{telegramId}/gemHistory/{historyId}": {
+      "schema": "GemHistory",
+      "description": "Historical earnings and spending transactions of the user"
+    },
+    "/referrals/{referralId}": {
+      "schema": "Referral",
+      "description": "Referral connections between users"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": "Withdrawal",
+      "description": "Withdrawal requests made by users"
+    },
+    "/games/{gameId}": {
+      "schema": "Game",
+      "description": "Active and completed RPS games"
+    },
+    "/config/global": {
+      "schema": "SystemConfig",
+      "description": "Global administration parameters for the app"
+    }
+  }
+}

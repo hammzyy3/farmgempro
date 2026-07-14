@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloudfirestore {
+  match /databases/{database}/documents {
+    // Global safety net - default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(telegramId) {
+      return isSignedIn() && (
+        resource == null || 
+        resource.data.firebaseUid == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(telegramId)) && 
+         get(/databases/$(database)/documents/users/$(telegramId)).data.firebaseUid == request.auth.uid)
+      );
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == "gskamiayaka@gmail.com"
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Users Collection Rules
+    match /users/{telegramId} {
+      allow read: if isAdmin() || (isSignedIn() && (resource == null || resource.data.firebaseUid == request.auth.uid));
+      
+      allow create: if isSignedIn() && 
+                    isValidId(telegramId) && 
+                    request.resource.data.firebaseUid == request.auth.uid &&
+                    request.resource.data.telegramId == telegramId &&
+                    request.resource.data.gems is number &&
+                    request.resource.data.gems >= 0 &&
+                    request.resource.data.exp is number &&
+                    request.resource.data.exp >= 0 &&
+                    request.resource.data.minerLevel is number &&
+                    request.resource.data.minerLevel >= 1;
+
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        resource.data.firebaseUid == request.auth.uid &&
+        request.resource.data.firebaseUid == request.auth.uid &&
+        request.resource.data.telegramId == telegramId &&
+        // Protect read-only/immutable fields
+        request.resource.data.createdAt == resource.data.createdAt &&
+        (
+          // Action: Update Profile/Stats (Click ad, Upgrade miner, Collect gems)
+          request.resource.data.diff(resource.data).affectedKeys().hasAny(['gems', 'exp', 'minerLevel', 'minerStartedAt', 'adViewsToday', 'lastAdViewAt', 'totalGamesWonGems', 'updatedAt'])
+        )
+      );
+
+      allow delete: if isAdmin();
+
+      // Subcollection GemHistory
+      match /gemHistory/{historyId} {
+        allow read: if isAdmin() || isOwner(telegramId);
+        allow create: if isAdmin() || (
+          isOwner(telegramId) && 
+          request.resource.data.amount is number &&
+          request.resource.data.type is string
+        );
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // Referrals Rules
+    match /referrals/{referralId} {
+      allow read: if isAdmin() || (isSignedIn() && (
+        resource.data.referrerId == request.auth.uid || 
+        resource.data.referredId == request.auth.uid
+      ));
+      allow create: if isSignedIn() && request.resource.data.referredId != null;
+      allow update: if isAdmin() || (isSignedIn() && (
+        resource.data.referrerId == request.auth.uid || 
+        resource.data.referredId == request.auth.uid
+      ));
+      allow delete: if isAdmin();
+    }
+
+    // Withdrawals Rules
+    match /withdrawals/{withdrawalId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId != null);
+      allow create: if isSignedIn() && 
+                    request.resource.data.userId != null &&
+                    request.resource.data.amountVnd is number &&
+                    request.resource.data.amountVnd >= 5000 &&
+                    request.resource.data.status == 'pending';
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        resource.data.userId != null &&
+        request.resource.data.status == 'cancelled' &&
+        resource.data.status == 'pending' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Games Rules
+    match /games/{gameId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && 
+                    request.resource.data.player1Id != null &&
+                    request.resource.data.status == 'waiting';
+      allow update: if isSignedIn() && (
+        // Allow joining the game or submitting player 2's move
+        (resource.data.status == 'waiting' && 
+         request.resource.data.status == 'completed' &&
+         request.resource.data.player2Id != null &&
+         request.resource.data.player2Move != null) ||
+        // Allow cancelling the game if player 1 is waiting
+        (resource.data.status == 'waiting' && 
+         request.resource.data.status == 'cancelled' &&
+         request.resource.data.player1Id != null)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Global Config Rules
+    match /config/global {
+      allow read: if true; // Public config
+      allow write: if isAdmin();
+    }
+
+    // Admins Collection Rules
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

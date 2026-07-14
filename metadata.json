@@ -1,0 +1,6 @@
+{
+  "name": "Farm Gem",
+  "description": "Telegram Mini App for mining gems, watching ads, playing games, and earning rewards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
